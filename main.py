@@ -1,49 +1,71 @@
-import asyncio
+from flask import Flask, request
+import requests
 import json
-from datetime import datetime
-from aiohttp import web
-import httpx
 
-TOKEN = "8701038867:AAG0ND3Ec3I00-ABs75Ybh9e4hlSQr8xfcw"
+app = Flask(__name__)
+
+BOT_TOKEN = "8701038867:AAG0ND3Ec3I00-ABs75Ybh9e4hlSQr8xfcw"
 CHAT_ID = "6528713349"
-API = f"https://api.telegram.org/bot{TOKEN}"
+TELEGRAM_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-async def send_msg(text):
-    async with httpx.AsyncClient() as client:
-        await client.post(f"{API}/sendMessage", json={"chat_id": CHAT_ID, "text": text})
+def send_message(text):
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    requests.post(TELEGRAM_URL, json=payload)
 
-async def handle_webhook(request):
+@app.route("/", methods=["GET"])
+def home():
+    return "✅ Bot is running!", 200
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
     try:
-        data = await request.json()
-        pair = data.get("pair", "EUR/USD OTC")
-        direction = data.get("direction", "BUY")
-        timeframe = data.get("timeframe", "1 MIN")
-        strength = data.get("strength", "STRONG")
-        now = datetime.now().strftime("%H:%M:%S")
-        action = "CALL" if direction.upper() in ["BUY","CALL"] else "PUT"
-        arrows = "⬆️⬆️⬆️ 📈" if action == "CALL" else "⬇️⬇️⬇️ 📉"
-        emoji = "🟢" if action == "CALL" else "🔴"
-        msg = f"🚀 {pair} {timeframe} SIGNAL 🤝\n{arrows} {strength} {action} SIGNAL {arrows}\n━━━━━━━━━━━━━━━━\n💹 الزوج: {pair}\n⏰ التوقيت: {now}\n🕐 مدة الصفقة: {timeframe}\n💪 القوة: {strength}\n{emoji} الاتجاه: {action}\n━━━━━━━━━━━━━━━━\n⚠️ إدارة المخاطر دائماً"
-        await send_msg(msg)
-        return web.Response(text="OK", status=200)
+        data = request.get_json(force=True)
+        if not data:
+            raw = request.data.decode("utf-8")
+            msg = f"📊 <b>إشارة جديدة</b>\n\n{raw}"
+            send_message(msg)
+            return "ok", 200
+
+        direction = data.get("direction", "")
+        symbol = data.get("symbol", "")
+        price = data.get("price", "")
+        strength = data.get("strength", "")
+        pattern = data.get("pattern", "")
+        timeframe = data.get("timeframe", "1m")
+
+        if direction == "CALL":
+            emoji = "🟢"
+            action = "CALL ▲ شراء"
+        elif direction == "PUT":
+            emoji = "🔴"
+            action = "PUT ▼ بيع"
+        else:
+            emoji = "⚪"
+            action = direction
+
+        msg = f"""
+{emoji} <b>{action}</b>
+
+📌 <b>الزوج:</b> {symbol}
+💰 <b>السعر:</b> {price}
+⏱ <b>الفريم:</b> {timeframe}
+💪 <b>القوة:</b> {strength}
+🕯️ <b>النمط:</b> {pattern}
+
+🤖 <b>HachimSignals2026</b>
+"""
+        send_message(msg)
+        return "ok", 200
+
     except Exception as e:
-        print(f"Error: {e}")
-        return web.Response(text="Error", status=500)
+        send_message(f"❌ خطأ: {str(e)}")
+        return "error", 500
 
-async def handle_home(request):
-    return web.Response(text="Bot Running!", status=200)
-
-async def main():
-    await send_msg("🚀 البوت شغال الآن!")
-    app = web.Application()
-    app.router.add_get("/", handle_home)
-    app.router.add_post("/webhook", handle_webhook)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)
-    await site.start()
-    print("Server running...")
-    while True:
-        await asyncio.sleep(3600)
-
-asyncio.run(main())
+if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
