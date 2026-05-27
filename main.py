@@ -1,31 +1,16 @@
 import asyncio
+import json
 from datetime import datetime
 from aiohttp import web
-import telegram
+import httpx
 
 TOKEN = "8701038867:AAG0ND3Ec3I00-ABs75Ybh9e4hlSQr8xfcw"
 CHAT_ID = "6528713349"
+API = f"https://api.telegram.org/bot{TOKEN}"
 
-bot = telegram.Bot(token=TOKEN)
-
-async def send_signal(pair, direction, timeframe, strength):
-    now = datetime.now().strftime("%H:%M:%S")
-    action = "CALL" if direction.upper() in ["BUY","CALL"] else "PUT"
-    arrows = "⬆️⬆️⬆️ 📈" if action == "CALL" else "⬇️⬇️⬇️ 📉"
-    emoji = "🟢" if action == "CALL" else "🔴"
-    msg = (
-        f"🚀 {pair} {timeframe} SIGNAL 🤝\n"
-        f"{arrows} {strength} {action} SIGNAL {arrows}\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"💹 الزوج: {pair}\n"
-        f"⏰ التوقيت: {now}\n"
-        f"🕐 مدة الصفقة: {timeframe}\n"
-        f"💪 القوة: {strength}\n"
-        f"{emoji} الاتجاه: {action}\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"⚠️ إدارة المخاطر دائماً"
-    )
-    await bot.send_message(chat_id=CHAT_ID, text=msg)
+async def send_msg(text):
+    async with httpx.AsyncClient() as client:
+        await client.post(f"{API}/sendMessage", json={"chat_id": CHAT_ID, "text": text})
 
 async def handle_webhook(request):
     try:
@@ -34,7 +19,12 @@ async def handle_webhook(request):
         direction = data.get("direction", "BUY")
         timeframe = data.get("timeframe", "1 MIN")
         strength = data.get("strength", "STRONG")
-        await send_signal(pair, direction, timeframe, strength)
+        now = datetime.now().strftime("%H:%M:%S")
+        action = "CALL" if direction.upper() in ["BUY","CALL"] else "PUT"
+        arrows = "⬆️⬆️⬆️ 📈" if action == "CALL" else "⬇️⬇️⬇️ 📉"
+        emoji = "🟢" if action == "CALL" else "🔴"
+        msg = f"🚀 {pair} {timeframe} SIGNAL 🤝\n{arrows} {strength} {action} SIGNAL {arrows}\n━━━━━━━━━━━━━━━━\n💹 الزوج: {pair}\n⏰ التوقيت: {now}\n🕐 مدة الصفقة: {timeframe}\n💪 القوة: {strength}\n{emoji} الاتجاه: {action}\n━━━━━━━━━━━━━━━━\n⚠️ إدارة المخاطر دائماً"
+        await send_msg(msg)
         return web.Response(text="OK", status=200)
     except Exception as e:
         print(f"Error: {e}")
@@ -44,7 +34,7 @@ async def handle_home(request):
     return web.Response(text="Bot Running!", status=200)
 
 async def main():
-    await bot.send_message(chat_id=CHAT_ID, text="🚀 البوت شغال الآن!")
+    await send_msg("🚀 البوت شغال الآن!")
     app = web.Application()
     app.router.add_get("/", handle_home)
     app.router.add_post("/webhook", handle_webhook)
