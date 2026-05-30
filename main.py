@@ -73,23 +73,22 @@ async def get_closes(symbol):
         return []
 
 def calc_signal(closes):
-    if len(closes) < 220:
+    if len(closes) < 50:
         return None, None
     price = closes[-1]
     ema9 = ema(closes, 9)
     ema21 = ema(closes, 21)
     ema50 = ema(closes, 50)
-    ema200 = ema(closes, 200)
     prev_ema9 = ema(closes[:-1], 9)
     prev_ema21 = ema(closes[:-1], 21)
-    if None in [ema9, ema21, ema50, ema200]:
+    if None in [ema9, ema21, ema50]:
         return None, None
     rsi = calc_rsi(closes)
     bb_up, bb_mid, bb_dn = bollinger(closes)
     if bb_up is None:
         return None, None
-    trend_bull = ema50 > ema200
-    trend_bear = ema50 < ema200
+    trend_bull = ema9 > ema50
+    trend_bear = ema9 < ema50
     cross_up = prev_ema9 <= prev_ema21 and ema9 > ema21
     cross_dn = prev_ema9 >= prev_ema21 and ema9 < ema21
     near_support = price <= bb_dn * 1.001
