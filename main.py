@@ -3,7 +3,7 @@ from datetime import datetime
 import httpx
 import math
 
-TOKEN = "8701038867:AAG0ND3Ec3I00-ABs75Ybh9e4hlSQr8xfcw"
+TOKEN = "8701038867:AAHcexuGG30003Z87Iyx_LDGpfI5XoD9N3w"
 CHAT_ID = "6528713349"
 API = f"https://api.telegram.org/bot{TOKEN}"
 
