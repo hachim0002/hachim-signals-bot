@@ -61,48 +61,54 @@ def bollinger(closes, period=20):
     return mid + 2*std, mid, mid - 2*std
 
 async def get_closes(symbol):
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=2d"
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            data = r.json()
-            closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
-            return [x for x in closes if x is not None]
-    except Exception as e:
-        print("Price Error:", e)
-        return []
+    urls = [
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=2d",
+        f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=2d"
+    ]
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+        "Referer": "https://finance.yahoo.com"
+    }
+    for url in urls:
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get(url, headers=headers)
+                if r.status_code == 200:
+                    data = r.json()
+                    closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+                    result = [x for x in closes if x is not None]
+                    if len(result) > 10:
+                        return result
+        except Exception as e:
+            print("Price Error:", e)
+    return []
 
 def calc_signal(closes):
-    if len(closes) < 50:
+    if len(closes) < 30:
         return None, None
     price = closes[-1]
     ema9 = ema(closes, 9)
     ema21 = ema(closes, 21)
-    ema50 = ema(closes, 50)
     prev_ema9 = ema(closes[:-1], 9)
     prev_ema21 = ema(closes[:-1], 21)
-    if None in [ema9, ema21, ema50]:
+    if None in [ema9, ema21, prev_ema9, prev_ema21]:
         return None, None
     rsi = calc_rsi(closes)
     bb_up, bb_mid, bb_dn = bollinger(closes)
     if bb_up is None:
         return None, None
-    trend_bull = ema9 > ema50
-    trend_bear = ema9 < ema50
     cross_up = prev_ema9 <= prev_ema21 and ema9 > ema21
     cross_dn = prev_ema9 >= prev_ema21 and ema9 < ema21
-    near_support = price <= bb_dn * 1.001
-    near_resistance = price >= bb_up * 0.999
-    ema_distance = abs(ema9 - ema21)
-    if ema_distance < price * 0.00005:
-        return None, None
-    bull_rsi = rsi < 40
-    bear_rsi = rsi > 60
-    bull_rejection = closes[-1] > closes[-2] and closes[-2] < closes[-3]
-    bear_rejection = closes[-1] < closes[-2] and closes[-2] > closes[-3]
-    if cross_up and trend_bull and bull_rsi and near_support and bull_rejection:
+    near_support = price <= bb_dn * 1.003
+    near_resistance = price >= bb_up * 0.997
+    if cross_up and rsi < 55 and near_support:
         return "call", price
-    if cross_dn and trend_bear and bear_rsi and near_resistance and bear_rejection:
+    if cross_dn and rsi > 45 and near_resistance:
+        return "put", price
+    if cross_up and rsi < 45:
+        return "call", price
+    if cross_dn and rsi > 55:
         return "put", price
     return None, None
 
