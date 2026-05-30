@@ -4,7 +4,7 @@ import httpx
 import math
 
 TOKEN = "8701038867:AAHcexuGG30003Z87Iyx_LDGpfI5XoD9N3w"
-CHAT_ID = "6528713349"
+CHAT_ID = "6141369575"
 API = f"https://api.telegram.org/bot{TOKEN}"
 
 PAIRS = {
