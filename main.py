@@ -88,18 +88,18 @@ def calc_signal(closes):
     if len(closes) < 30:
         return None, None
     price = closes[-1]
-    ema9 = ema(closes, 9)
     ema21 = ema(closes, 21)
-    prev_ema9 = ema(closes[:-1], 9)
     prev_ema21 = ema(closes[:-1], 21)
+    ema7 = ema(closes, 7)
+    prev_ema7 = ema(closes[:-1], 7)
     if None in [ema9, ema21, prev_ema9, prev_ema21]:
         return None, None
-    rsi = calc_rsi(closes)
+    rsi = calc_rsi(closes, 7)
     bb_up, bb_mid, bb_dn = bollinger(closes)
     if bb_up is None:
         return None, None
-    cross_up = prev_ema9 <= prev_ema21 and ema9 > ema21
-    cross_dn = prev_ema9 >= prev_ema21 and ema9 < ema21
+    cross_up = prev_ema7 <= prev_ema21 and ema7 > ema21
+    cross_dn = prev_ema7 >= prev_ema21 and ema7 < ema21
     near_support = price <= bb_dn * 1.003
     near_resistance = price >= bb_up * 0.997
     if cross_up and rsi < 55 and near_support:
